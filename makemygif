@@ -1,0 +1,107 @@
+function makemygif
+%MAKEMYGIF Create an animated .GIF using an .AVI or separate image files as the
+% inputs. Display time of the first and last frames can be independently
+% modified, as well as the delay times in between each frame. Frameskip can
+% be implemented and the output frame size can be scaled up or down. The
+% number of times the .GIF will play can also be changed.
+%
+% All parameters and the source files are input using GUI features.
+
+% Record of revisions:
+%   Date          Author              Description of change
+%   ====          ========            =====================
+% 05/06/13        Christofer Clemente  Original code for avi2gif.m
+% 16/06/13        David Soletti       Developed makemygif.m by adding image 
+%                                     functionality and GUI elements to
+%                                     modify output parameters of the .GIF 
+
+% This lets me skip to a new line in a dialogue box;
+nl = sprintf('\n');
+
+% Ask user if they want to use an .avi or image files to make the .gif;
+choice = questdlg(['What do you want to use as an input to your .gif?',nl,nl,...
+    'Note: Image files will be added to the .gif in the same order as they appear in Windows Explorer.'],...
+    'Please choose ...','Movie (.avi)','Image files','Movie (.avi)');
+switch choice;
+    case 'Movie (.avi)'
+        % User selects .avi to be converted to .gif;
+        [filename, pathname] = uigetfile('*.avi','*.mov', '*.mpg');
+        mObj = VideoReader([pathname,filename]); 
+        %only needed if .wmv file
+        lastFrame = read(mObj, inf);
+        
+        
+        % Definitions;
+        nFrames = mObj.NumberOfFrames;
+        mov(1:nFrames) = struct('cdata',[],'colormap',[]);
+        defaultfilename = filename(1:end - 4);
+
+        % Read one frame at a time;
+        for ii = 1:nFrames;
+            mov(ii).cdata = read(mObj,ii);
+        end
+        
+    case 'Image files'
+        % User multi-selects image files to be converted to a .gif;
+        [filename, pathname] = uigetfile({'*.jpeg;*.jpg;*.bmp;*.tif;*.tiff;*.png;*.gif',...
+            'Image Files (JPEG, BMP, TIFF, PNG and GIF)'},...
+            'Select Images','multiselect','on');
+        cd(pathname);        
+        % Definitions;
+        nFrames = length(filename);
+        mov(1:nFrames) = struct('cdata',[],'colormap',[]);
+        defaultfilename = filename{1};
+        defaultfilename = defaultfilename(1:end - 4);
+        
+        % Read one frame at a time;
+        for ii = 1:nFrames;
+            mov(ii).cdata = imread(filename{ii});
+        end
+        
+end
+
+% Sets save path to the location of the .avi or image files selected;
+cd(pathname);
+
+% Here are the user input parameters for output filename, frame delay,
+% frameskip, and frame dimensions;
+inputs = inputdlg({...
+    ['Please enter the desired filename (less extension) of the output .gif:',nl],...
+    ['Please enter the display time in seconds of the first frame of the output .gif. This is useful for displaying the first frame of the .gif for a few seconds before the animation starts.:',nl],...
+    ['Please enter the delay time in seconds between frames of the output .gif. This is useful for slowing down the .gif to a slide-show of images.:',nl],...
+    ['Please enter the display time in seconds of the last frame of output .gif. This is useful for displaying the last frame of the .gif for a few seconds before it loops over.:',nl],...
+    ['Please enter a frameskip factor for the output .gif. A value of 1 preserves all frames, a value of 2 halves the number of frames displayed, etc. Useful for reducing filesize of the .gif by skipping frames:',nl]...
+    ['Please enter a framesize factor for the output .gif. A value of 1 preserves the existing dimensions of the frames, a value of 0.5 halves the frame dimensions, and a value of 2 doubles the frame dimensions, etc. Useful for reducing filesize of the .gif by shrinking each frame:',nl]...
+    ['Please enter the number of times the output .gif should play. For a value of 1, the .gif will be played once, for a value of 2, the .gif will be played twice, etc. The default value present will be an infinite loop:',nl]...
+    }, 'Change parameters ...',...
+    1,{defaultfilename,'1','0','1','1','1','Forever!'});
+filename = inputs{1}; firstdelay = inputs{2}; delay = inputs{3};...
+    lastdelay = inputs{4}; frameskip = inputs{5}; framesize = inputs{6};...
+    loops = inputs{7};
+
+% Set the number of loops;
+if strcmp(loops,'Forever!');
+    numLoops = 65535;
+else numLoops = str2double(loops);
+end
+
+tic;
+
+% This loop writes the .gif in accordance with user input parameters;
+for ii = 1:str2double(frameskip):nFrames;
+    [f,map] = rgb2ind(mov(ii).cdata, 256);
+    [fResize,mapResize] = imresize(f,map,str2double(framesize));
+    if ii == 1;
+        imwrite(fResize,mapResize,strcat(filename,'.gif'),'gif','Loopcount',...
+            numLoops,'DelayTime',str2double(firstdelay));
+    elseif ii == nFrames(end);
+        imwrite(fResize,mapResize,strcat(filename,'.gif'),'gif','WriteMode',...
+            'append','DelayTime',str2double(lastdelay));
+    else
+        imwrite(fResize,mapResize,strcat(filename,'.gif'),'gif','WriteMode',...
+            'append','DelayTime',str2double(delay));
+    end
+end
+
+toc;
+end
